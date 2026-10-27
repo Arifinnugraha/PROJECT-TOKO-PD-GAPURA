@@ -1,0 +1,37 @@
+@startuml
+actor Pemilik
+boundary "Halaman Laporan Harian" as UI
+control "LaporanService" as Service
+entity "LaporanRepository" as Repo
+database "Database" as DB
+
+Pemilik -> UI : pilihLaporanHarian(tanggal)
+UI -> Service : requestLaporan(pemilik, tanggal)
+activate Service
+Service -> Service : validasi sesi dan hak akses
+alt pengguna tidak berhak / sesi tidak aktif
+  Service --> UI : AksesDitolakException
+  UI --> Pemilik : tampilkanPesanAksesDitolak()
+else pengguna berhak
+  Service -> Repo : cariTransaksiByTanggal(tanggal)
+  Repo -> DB : SELECT transaksi WHERE tanggal = ?
+  DB --> Repo : dataTransaksi
+  Repo --> Service : dataTransaksi
+  alt data transaksi kosong
+    Service --> UI : DataLaporanTidakDitemukanException
+    UI --> Pemilik : tampilkan "Tidak ada data untuk periode ini"
+  else data tersedia
+    Service -> Service : agregasiDataPenjualan(dataTransaksi)
+    Service -> Repo : simpanLaporan(laporan)
+    Repo -> DB : INSERT laporan penjualan
+    DB --> Repo : OK
+    Service -> Repo : simpanLogAkses(logAkses)
+    Repo -> DB : INSERT log akses
+    DB --> Repo : OK
+    Repo --> Service : konfirmasi penyimpanan
+    Service --> UI : laporan
+    UI --> Pemilik : tampilkanLaporan(jumlahTransaksi, totalPenjualan)
+  end
+end
+ deactivate Service
+@enduml

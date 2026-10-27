@@ -1,0 +1,145 @@
+@startuml
+skinparam classAttributeIconSize 0
+hide empty members
+
+abstract class User {
+  - idUser: int
+  - nama: String
+  - username: String
+  - passwordHash: String
+  # role: String
+  - sesiAktif: boolean
+  + login(username, passwordHash): boolean
+  + logout(): void
+  + bolehAksesLaporan(): boolean
+}
+class Pemilik {
+  + beriAksesLaporan(permintaan): void
+  + beriAksesLaporan(permintaan, kasir): void
+  + hasilkanLaporanHarian(service, tanggal): LaporanPenjualan
+  + terimaNotifikasi(notifikasi): void
+  + tindakLanjutNotifikasi(notifikasi): void
+}
+class Kasir {
+  - aksesLaporan: boolean
+  + menerimaBarang(suratJalan, po): void
+  + mencatatPenjualan(transaksi): void
+  + mengajukanAksesLaporan(...): AksesLaporan
+  + kirimNotifikasi(...): Notifikasi
+}
+class Supplier {
+  - idSupplier: int
+  - namaSupplier: String
+  - kontak: String
+  + kirimBarang(po): boolean
+  + terimaNotifikasiPenolakan(notifikasi): void
+}
+class LaporanPenjualan {
+  - idLaporan: int
+  - tanggal: LocalDate
+  # status: String
+  - jumlahTransaksi: int
+  - totalPenjualan: double
+  + agregasiDataPenjualan(dataTransaksi): void
+  + simpanLaporan(repository): void
+  + tandaiProvisional(): void
+}
+class PO {
+  - idPO: int
+  - tanggal: LocalDate
+  # status: String
+  - idSupplier: int
+  + updateStatusPO(status): void
+}
+class SuratJalan {
+  - idSuratJalan: int
+  - tanggal: LocalDate
+  - idPO: int
+  # valid: boolean
+  + verifikasiSuratJalan(po): boolean
+}
+class AksesLaporan {
+  - idAkses: int
+  - idUser: int
+  - alasan: String
+  - periodeAwal: LocalDate
+  - periodeAkhir: LocalDate
+  # status: String
+  # aksesSementara: boolean
+  + sendNotifikasi(idNotif): Notifikasi
+  + updateStatus(status, aksesSementara): void
+}
+class Notifikasi {
+  - idNotif: int
+  - tanggal: LocalDateTime
+  - tipe: String
+  - isi: String
+  # statusBaca: boolean
+  + simpanNotifikasi(): void
+  + tandaiSudahBaca(): void
+}
+class TransaksiPenjualan {
+  - idTransaksi: int
+  - tanggal: LocalDate
+  - idUser: int
+  # totalBayar: double
+  + tambahDetail(detail): void
+  + prosesPembayaran(jumlahBayar): void
+  + simpanTransaksi(): void
+}
+class DetailTransaksi {
+  - idDetail: int
+  - idTransaksi: int
+  - idBarang: int
+  - qty: int
+  # subtotal: double
+  + hitungSubtotal(): double
+}
+class Barang {
+  - idBarang: int
+  - namaBarang: String
+  - hargaBeli: double
+  - hargaJual: double
+  + updateDataBarang(...): void
+}
+class Stok {
+  - idStok: int
+  - idBarang: int
+  # jumlah: int
+  + tambahStok(jumlah): void
+  + kurangiStok(jumlah): void
+  + cekStok(): int
+}
+
+' Kelas pendukung alur sequence laporan harian
+class LaporanService {
+  + hasilkanLaporanHarian(pengguna, tanggal): LaporanPenjualan
+}
+interface LaporanRepository {
+  + cariTransaksiByTanggal(tanggal): List<TransaksiPenjualan>
+  + simpanLaporan(laporan): void
+  + simpanLogAkses(log): void
+}
+class InMemoryLaporanRepository
+class LogAkses {
+  - idLog: int
+  - idUser: int
+  - tanggal: LocalDateTime
+  - aktivitas: String
+}
+
+User <|-- Pemilik
+User <|-- Kasir
+Supplier "1" -- "0..*" PO : menyediakan
+PO "1" -- "1" SuratJalan : diterbitkan untuk
+TransaksiPenjualan "1" *-- "1..*" DetailTransaksi
+Barang "1" -- "0..*" DetailTransaksi
+Barang "1" -- "1" Stok
+User "1" -- "0..*" TransaksiPenjualan : mencatat
+User "1" -- "0..*" AksesLaporan : mengajukan
+User "1" -- "0..*" Notifikasi : menerima
+LaporanService --> LaporanRepository
+InMemoryLaporanRepository ..|> LaporanRepository
+LaporanPenjualan ..> TransaksiPenjualan : agregasi
+LaporanRepository ..> LogAkses : simpan
+@enduml
